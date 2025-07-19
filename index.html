@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简幻欢实例创建工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .tutorial {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 5px;
+            /* 减小折叠状态下的内边距以降低高度 */
+            padding: 10px 20px; 
+            margin-bottom: 20px;
+        }
+        .tutorial h2 {
+            color: #1976d2;
+            margin-top: 0;
+        }
+        .bookmarklet {
+            display: inline-block;
+            background: #1976d2;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: move;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .bookmarklet:hover {
+            background: #1565c0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .creatable {
+            color: green;
+        }
+        .not-creatable {
+            color: red;
+        }
+        button {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .success {
+            color: green;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .selected {
+            background-color: #e8f5e9 !important;
+        }
+        #createBtn {
+            display: block;
+            margin: 20px auto;
+            padding: 15px 40px;
+            font-size: 18px;
+        }
+        /* 添加新的 CSS 样式 */
+        .tutorial-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .tutorial-content {
+            display: none;
+            /* 增大教程内容的字体大小 */
+            font-size: 1.1em; 
+        }
+        .tutorial.expanded .tutorial-content {
+            display: block;
+        }
+        .toggle-icon {
+            transition: transform 0.3s;
+        }
+        .tutorial.expanded .toggle-icon {
+            transform: rotate(180deg);
+        }
+        /* 添加或修改输入框样式 */
+        #tokenInput {
+            width: 300px; /* 增加宽度 */
+            height: 30px; /* 增加高度 */
+            font-size: 16px; /* 增大字体大小 */
+            padding: 5px 10px; /* 增加内边距 */
+            margin-right: 10px; /* 与按钮之间添加间距 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>简幻欢实例创建工具</h1>
+        
+        <div id="tutorial" class="tutorial">
+            <!-- 修改教程部分结构 -->
+            <div class="tutorial-header" onclick="toggleTutorial()">
+                <h2>首次使用教程</h2>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="tutorial-content">
+                <p>请按以下步骤完成设置：</p>
+                <ol>
+                    <li>将下方按钮拖拽到浏览器收藏夹栏：<br>
+                        <a href="javascript:(function(){alert('请点击提交 Token 按钮进行设置');})();" 
+                           class="bookmarklet" 
+                           title="简幻欢Token设置工具">简幻欢Token获取</a>
+                    </li>
+                    <li>访问 <a href="https://simpfun.cn/console" target="_blank">简幻欢官网</a> 并登录您的账号</li>
+                    <li>
+                        <input type="text" id="tokenInput" placeholder="粘贴您的Token">
+                        <button onclick="submitToken()">提交 Token</button>
+                    </li>
+                    <li>返回此页面，配置列表将自动加载</li>
+                </ol>
+                <button onclick="hideTutorial()">我已设置完成</button>
+                <!-- 新增清除 Token 按钮 -->
+                <button onclick="clearToken()">清除 Token</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">正在加载配置列表...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <table id="configTable" style="display: none;">
+            <thead>
+                <tr>
+                    <!-- 删除选择列 -->
+                    <th>ID</th>
+                    <th>CPU等级</th>
+                    <th>供应商</th>
+                    <th>CPU核心数</th>
+                    <th>内存(GB)</th>
+                    <th>磁盘(GB)</th>
+                    <th>流量(GB)</th>
+                    <th>积分</th>
+                    <th>规格</th>
+                    <th>可创建</th>
+                </tr>
+            </thead>
+            <tbody id="configBody">
+            </tbody>
+        </table>
+        
+        <button id="createBtn" style="display: none;" disabled>创建实例</button>
+        <div id="result" class="success" style="display: none;"></div>
+    </div>
+
+    <script>
+        let selectedConfig = null;
+        let token = localStorage.getItem('sf_token');
+        // 检查是否首次使用
+        const isFirstUse = !localStorage.getItem('hasUsedBefore');
+
+        function hideTutorial() {
+            const tutorial = document.getElementById('tutorial');
+            tutorial.classList.remove('expanded');
+            localStorage.setItem('hasUsedBefore', 'true');
+            if (!token) {
+                document.getElementById('error').textContent = '请先设置Token后再刷新页面';
+                document.getElementById('error').style.display = 'block';
+            } else {
+                loadConfigs();
+            }
+        }
+
+        // 切换教程折叠状态
+        function toggleTutorial() {
+            const tutorial = document.getElementById('tutorial');
+            tutorial.classList.toggle('expanded');
+        }
+
+        // 提交 Token 的函数
+        function submitToken() {
+            const tokenInput = document.getElementById('tokenInput');
+            const newToken = tokenInput.value.trim();
+            if (newToken) {
+                localStorage.setItem('sf_token', newToken);
+                token = newToken;
+                alert('Token 已保存！');
+                loadConfigs();
+            } else {
+                alert('请输入有效的 Token');
+            }
+        }
+
+        // 新增清除 Token 函数
+        function clearToken() {
+            localStorage.removeItem('sf_token');
+            token = null;
+            document.getElementById('tokenInput').value = '';
+            alert('Token 已清除！');
+            document.getElementById('tutorial').style.display = 'block';
+            document.getElementById('tutorial').classList.add('expanded');
+            document.getElementById('configTable').style.display = 'none';
+            document.getElementById('createBtn').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+        }
+
+        async function loadConfigs() {
+            if (!token) {
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            
+            try {
+                const response = await fetch('https://api.simpfun.cn/api/shop/list?version_id=191', {
+                    headers: {
+                        'Authorization': token,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('获取配置失败，请检查Token是否正确');
+                }
+
+                const data = await response.json();
+                
+                if (data.code !== 200) {
+                    throw new Error(data.message || '获取配置失败');
+                }
+
+                displayConfigs(data.list);
+            } catch (error) {
+                document.getElementById('error').textContent = error.message;
+                document.getElementById('error').style.display = 'block';
+                if (error.message.includes('Token')) {
+                    localStorage.removeItem('sf_token');
+                    document.getElementById('tutorial').style.display = 'block';
+                }
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        const gradeOrder = ["C+", "C++", "B-", "B", "B+", "B++", "A", "S-", "S", "S+"];
+const specOrder   = ["M", "M+", "L", "L+", "XL", "2XL", "3XL"]; // 从低到高
+let sortKey   = '';   // 当前排序列
+let sortAsc   = true; // true 升序，false 降序
+
+/* 统一取出排序值（用于比较） */
+function getSortValue(item, key) {
+    let v = item[key];
+
+    /* 区域等级 */
+    if (key === 'area_grade') {
+        const idx = gradeOrder.indexOf(v);
+        return idx === -1 ? 999 : idx;
+    }
+
+    /* 规格 */
+    if (key === 'spec') {
+        const idx = specOrder.indexOf(v);
+        return idx === -1 ? 999 : idx;
+    }
+
+    /* 布尔值 creatable → 0/1 */
+    if (key === 'creatable') {
+        return v ? 0 : 1;
+    }
+
+    /* 其余按数字排，转不了数字就按字符串排 */
+    const n = parseFloat(v);
+    return isNaN(n) ? String(v) : n;
+}
+
+/* 对数据排序 */
+function sortData(data, key, asc) {
+    return [...data].sort((a, b) => {
+        const v1 = getSortValue(a, key);
+        const v2 = getSortValue(b, key);
+
+        if (v1 < v2) return asc ? -1 : 1;
+        if (v1 > v2) return asc ? 1 : -1;
+        return 0;
+    });
+}
+
+/* ---------- 渲染表头（带点击排序） ---------- */
+function renderHeader(columns) {
+    const tr = document.createElement('tr');
+    columns.forEach(({ header, key }) => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        if (key !== null) { // 可排序列
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => toggleSort(key));
+            if (sortKey === key) {
+                th.textContent += sortAsc ? ' ▲' : ' ▼';
+            }
+        }
+        tr.appendChild(th);
+    });
+    return tr;
+}
+
+/* ---------- 切换排序 ---------- */
+function toggleSort(key) {
+    if (sortKey === key) {
+        sortAsc = !sortAsc;
+    } else {
+        sortKey = key;
+        sortAsc = true;
+    }
+    const data = JSON.parse(localStorage.getItem('cachedConfigs') || '[]');
+    displayConfigs(data);
+}
+
+/* ---------- 主渲染函数 ---------- */
+function displayConfigs(rawConfigs) {
+    localStorage.setItem('cachedConfigs', JSON.stringify(rawConfigs));
+
+    // 移除选择列配置
+    const columns = [
+        { header: 'ID', key: 'id' },
+        { header: 'CPU等级', key: 'area_grade' },
+        { header: '供应商', key: 'area_vendor' },
+        { header: 'CPU核心数', key: 'cpu' },
+        { header: '内存(GB)', key: 'ram' },
+        { header: '磁盘(GB)', key: 'disk' },
+        { header: '流量(GB)', key: 'traffic' },
+        { header: '积分', key: 'point' },
+        { header: '规格', key: 'spec' },
+        { header: '可创建', key: 'creatable' }
+    ];
+
+    const configs = sortData(rawConfigs, sortKey, sortAsc);
+
+    /* 表头 */
+    const thead = document.querySelector('#configTable thead');
+    thead.innerHTML = '';
+    thead.appendChild(renderHeader(columns));
+
+    /* 表体 */
+    const tbody = document.getElementById('configBody');
+    tbody.innerHTML = '';
+    configs.forEach(config => {
+        const row = document.createElement('tr');
+        // 移除单选按钮相关代码
+        row.innerHTML = `
+            <td>${config.id}</td>
+            <td>${config.area_grade}</td>
+            <td>${config.area_vendor}</td>
+            <td>${config.cpu}</td>
+            <td>${config.ram}</td>
+            <td>${config.disk}</td>
+            <td>${config.traffic}</td>
+            <td>${config.point}</td>
+            <td>${config.spec}</td>
+            <td class="${config.creatable ? 'creatable' : 'not-creatable'}">
+                ${config.creatable ? '是' : '否'}
+            </td>
+        `;
+
+        // 点击行选中配置
+        row.addEventListener('click', () => {
+            if (config.creatable) {
+                selectedConfig = config;
+                document.getElementById('createBtn').disabled = false;
+                tbody.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+                row.classList.add('selected');
+            }
+        });
+
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('configTable').style.display = 'table';
+    document.getElementById('createBtn').style.display = 'block';
+}
+
+        async function createInstance() {
+            if (!selectedConfig) return;
+
+            document.getElementById('createBtn').disabled = true;
+            document.getElementById('createBtn').textContent = '创建中...';
+
+            try {
+                const response = await fetch('https://api.simpfun.cn/api/ins/create', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': token,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `item_id=${selectedConfig.id}&version_id=191`
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.code === 200) {
+                    document.getElementById('result').innerHTML = `
+                        <h3>创建成功！</h3>
+                        <p>实例ID: ${data.ins_id}</p>
+                        <p>状态: ${data.status}</p>
+                    `;
+                } else {
+                    document.getElementById('result').innerHTML = `
+                        <h3 style="color: red;">创建失败</h3>
+                        <p>${data.message || '未知错误'}</p>
+                    `;
+                }
+                document.getElementById('result').style.display = 'block';
+            } catch (error) {
+                document.getElementById('result').innerHTML = `
+                    <h3 style="color: red;">请求失败</h3>
+                    <p>${error.message}</p>
+                `;
+                document.getElementById('result').style.display = 'block';
+            } finally {
+                document.getElementById('createBtn').textContent = '创建实例';
+                document.getElementById('createBtn').disabled = false;
+            }
+        }
+
+        document.getElementById('createBtn').addEventListener('click', createInstance);
+
+        window.addEventListener('load', () => {
+            const tutorial = document.getElementById('tutorial');
+            // 确保教程始终显示
+            tutorial.style.display = 'block';
+
+            // 首次使用或没有 token 时展开教程
+            if (isFirstUse || !token) {
+                tutorial.classList.add('expanded');
+            } else {
+                tutorial.classList.remove('expanded');
+            }
+
+            if (token) {
+                loadConfigs();
+            }
+        });
+    </script>
+</body>
+</html>
